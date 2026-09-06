@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Harshit's Web</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0A0E17;
+    --panel: #131826;
+    --line: rgba(255,255,255,0.08);
+    --text: #E7ECF5;
+    --text-dim: #7C8598;
+    --human: #4FD8FF;
+    --rage: #FF5A2E;
+    --enemy: #8C93A6;
+    --danger: #FF4557;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  .app { width: 100%; max-width: 780px; }
+
+  h1.title {
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 900;
+    font-size: 34px;
+    letter-spacing: 0.03em;
+    margin: 0 0 4px;
+    text-align: center;
+    background: linear-gradient(90deg, var(--human), var(--rage));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  p.subtitle {
+    text-align: center;
+    color: var(--text-dim);
+    margin: 0 0 24px;
+    font-size: 14px;
+  }
+
+  .hud {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    gap: 16px;
+    font-family: 'Orbitron', sans-serif;
+  }
+  .stat-block { flex: 1; }
+  .stat-label {
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: 0.05em;
+    margin-bottom: 4px;
+  }
+  .bar-track {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    height: 14px;
+    overflow: hidden;
+  }
+  .bar-fill { height: 100%; transition: width 0.15s ease; }
+  #health-fill { background: var(--human); }
+  #energy-fill { background: var(--rage); }
+
+  .score-block {
+    text-align: right;
+    font-size: 20px;
+    font-weight: 700;
+  }
+  .form-badge {
+    display: inline-block;
+    font-size: 11px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    background: rgba(255,255,255,0.06);
+    margin-left: 8px;
+    vertical-align: middle;
+  }
+  .form-badge.human { color: var(--human); }
+  .form-badge.rage { color: var(--rage); }
+
+  canvas {
+    width: 100%;
+    background: radial-gradient(ellipse at 50% 20%, #171E30 0%, #0A0E17 70%);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    display: block;
+  }
+
+  .controls-hint {
+    display: flex;
+    justify-content: center;
+    gap: 24px;
+    margin-top: 12px;
+    font-size: 12.5px;
+    color: var(--text-dim);
+    flex-wrap: wrap;
+  }
+  .controls-hint b { color: var(--text); }
+
+  .overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(10,14,23,0.94);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    z-index: 10;
+  }
+  .overlay.show { display: flex; }
+  .overlay-title {
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 900;
+    font-size: 44px;
+    margin-bottom: 8px;
+    color: var(--danger);
+  }
+  .overlay-sub {
+    color: var(--text-dim);
+    margin-bottom: 22px;
+  }
+  .retry-btn {
+    background: var(--text);
+    color: var(--bg);
+    border: none;
+    padding: 12px 30px;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 15px;
+    cursor: pointer;
+  }
+  .start-overlay-btn {
+    display: block;
+    margin: 8px auto 0;
+    background: var(--text);
+    color: var(--bg);
+    border: none;
+    padding: 13px 34px;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 15px;
+    cursor: pointer;
+  }
+</style>
+</head>
+<body>
+
+<div class="overlay show" id="start-overlay">
+  <div class="overlay-title" style="color: var(--human);">HARSHIT'S WEB</div>
+  <div class="overlay-sub">Defend the sector. Transform when it counts.</div>
+  <button class="start-overlay-btn" id="start-btn">Start Game</button>
+</div>
+
+<div class="overlay" id="gameover-overlay">
+  <div class="overlay-title">SYSTEM DOWN</div>
+  <div class="overlay-sub" id="final-score">Score: 0</div>
+  <button class="retry-btn" id="retry-btn">Try Again</button>
+</div>
+
+<div class="app">
+  <h1 class="title">HARSHIT'S WEB</h1>
+  <p class="subtitle">Kade holds the line as himself — or unleashed.</p>
+
+  <div class="hud">
+    <div class="stat-block">
+      <div class="stat-label">INTEGRITY <span class="form-badge human" id="form-badge">HUMAN</span></div>
+      <div class="bar-track"><div class="bar-fill" id="health-fill" style="width:100%"></div></div>
+    </div>
+    <div class="stat-block">
+      <div class="stat-label">RAGE ENERGY</div>
+      <div class="bar-track"><div class="bar-fill" id="energy-fill" style="width:0%"></div></div>
+    </div>
+    <div class="score-block">Score: <span id="score">0</span></div>
+  </div>
+
+  <canvas id="arena" width="760" height="340"></canvas>
+
+  <div class="controls-hint">
+    <span><b>&larr; &rarr;</b> move</span>
+    <span><b>&uarr;</b> jump</span>
+    <span><b>Z</b> punch</span>
+    <span><b>X</b> laser blast</span>
+    <span><b>H</b> transform to Ragestorm</span>
+    <span><b>B</b> revert to human</span>
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('arena');
+const ctx = canvas.getContext('2d');
+const W = canvas.width, H = canvas.height;
+const GROUND_Y = H - 44;
+const GRAVITY = 0.6;
+const JUMP_V = -11;
+
+const player = {
+  x: 130, y: GROUND_Y, vx: 0, vy: 0,
+  onGround: true, facing: 1,
+  form: 'human', // 'human' or 'rage'
+  health: 100, energy: 0,
+  punchCooldown: 0, laserCooldown: 0,
+  hitFlash: 0, eyeFlash: 0, punchAnim: 0
+};
+
+const FORM_STATS = {
+  human: { speed: 4, w: 34, h: 62, punchDmg: 8, laserDmg: 10, laserCooldownMax: 26, color: '#4FD8FF' },
+  rage:  { speed: 5.4, w: 50, h: 82, punchDmg: 16, laserDmg: 20, laserCooldownMax: 16, color: '#FF5A2E' }
+};
+
+let projectiles = [];
+let enemies = [];
+let score = 0;
+let running = false;
+let spawnTimer = 0;
+let spawnInterval = 100;
+
+const keys = {};
+window.addEventListener('keydown', e => {
+  keys[e.key.toLowerCase()] = true;
+  if (e.key.toLowerCase() === 'h') tryTransform();
+  if (e.key.toLowerCase() === 'b') tryRevert();
+});
+window.addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
+
+function tryTransform() {
+  if (!running) return;
+  if (player.form === 'rage') return;
+  if (player.energy >= 100) {
+    player.form = 'rage';
+    player.energy = 0;
+    flashText('TRANSFORMED');
+  }
+}
+function tryRevert() {
+  if (!running) return;
+  if (player.form === 'human') return;
+  player.form = 'human';
+  flashText('REVERTED');
+}
+
+let floatingText = null, floatingTimer = 0;
+function flashText(t) { floatingText = t; floatingTimer = 40; }
+
+function updateHUD() {
+  const stats = FORM_STATS[player.form];
+  document.getElementById('health-fill').style.width = Math.max(0, player.health) + '%';
+  document.getElementById('energy-fill').style.width = player.energy + '%';
+  document.getElementById('score').textContent = score;
+  const badge = document.getElementById('form-badge');
+  badge.textContent = player.form === 'human' ? 'HUMAN' : 'RAGESTORM';
+  badge.className = 'form-badge ' + player.form;
+  document.getElementById('health-fill').style.background = stats.color;
+}
+
+function spawnEnemy() {
+  const fromLeft = Math.random() < 0.5;
+  enemies.push({
+    x: fromLeft ? -20 : W + 20,
+    y: GROUND_Y,
+    w: 30, h: 50,
+    vx: fromLeft ? 1.4 : -1.4,
+    health: 20,
+    hitFlash: 0
+  });
+}
+
+function attemptPunch() {
+  if (player.punchCooldown > 0) return;
+  player.punchCooldown = 20;
+  player.punchAnim = 14;
+  const stats = FORM_STATS[player.form];
+  const range = 50 + stats.w / 2;
+  enemies.forEach(en => {
+    if (Math.abs(en.x - player.x) < range) {
+      en.health -= stats.punchDmg;
+      en.hitFlash = 8;
+      gainEnergy(6);
+    }
+  });
+}
+
+function fireLaser() {
+  if (player.laserCooldown > 0) return;
+  const stats = FORM_STATS[player.form];
+  player.laserCooldown = stats.laserCooldownMax;
+  const headY = player.y - stats.h - (player.form === 'rage' ? 18 : 14);
+  projectiles.push({
+    x: player.x + player.facing * (stats.w * 0.32),
+    y: headY - 2,
+    vx: player.facing * 9,
+    dmg: stats.laserDmg,
+    color: stats.color
+  });
+  player.eyeFlash = 8;
+  gainEnergy(4);
+}
+
+function gainEnergy(amt) {
+  if (player.form === 'rage') return;
+  player.energy = Math.min(100, player.energy + amt);
+}
+
+function playerControl() {
+  const stats = FORM_STATS[player.form];
+  player.vx = 0;
+  if (keys['arrowleft']) { player.vx = -stats.speed; player.facing = -1; }
+  if (keys['arrowright']) { player.vx = stats.speed; player.facing = 1; }
+  if (keys['arrowup'] && player.onGround) { player.vy = JUMP_V; player.onGround = false; }
+  if (keys['z']) attemptPunch();
+  if (keys['x']) fireLaser();
+}
+
+function physicsStep() {
+  player.x += player.vx;
+  player.x = Math.max(30, Math.min(W - 30, player.x));
+  player.vy += GRAVITY;
+  player.y += player.vy;
+  if (player.y >= GROUND_Y) { player.y = GROUND_Y; player.vy = 0; player.onGround = true; }
+  if (player.punchCooldown > 0) player.punchCooldown--;
+  if (player.laserCooldown > 0) player.laserCooldown--;
+  if (player.hitFlash > 0) player.hitFlash--;
+  if (player.eyeFlash > 0) player.eyeFlash--;
+  if (player.punchAnim > 0) player.punchAnim--;
+
+  projectiles.forEach(p => { p.x += p.vx; });
+  projectiles = projectiles.filter(p => p.x > -20 && p.x < W + 20);
+
+  enemies.forEach(en => {
+    en.x += en.vx;
+    if (en.hitFlash > 0) en.hitFlash--;
+    const dist = Math.abs(en.x - player.x);
+    if (dist < 34 && player.hitFlash <= 0) {
+      const stats = FORM_STATS[player.form];
+      player.health -= (player.form === 'rage' ? 4 : 8);
+      player.hitFlash = 30;
+      if (player.health <= 0) endGame();
+    }
+  });
+
+  projectiles.forEach(p => {
+    enemies.forEach(en => {
+      if (Math.abs(p.x - en.x) < 22 && en.health > 0) {
+        en.health -= p.dmg;
+        en.hitFlash = 8;
+        p.x = -9999;
+      }
+    });
+  });
+
+  const before = enemies.length;
+  enemies = enemies.filter(en => en.health > 0 && en.x > -60 && en.x < W + 60);
+  const killed = before - enemies.length;
+  if (killed > 0) score += killed * 10;
+
+  spawnTimer++;
+  if (spawnTimer > spawnInterval) {
+    spawnTimer = 0;
+    spawnEnemy();
+    if (spawnInterval > 45) spawnInterval -= 2;
+  }
+
+  if (floatingTimer > 0) floatingTimer--; else floatingText = null;
+}
+
+function drawPlayer() {
+  const stats = FORM_STATS[player.form];
+  const isRage = player.form === 'rage';
+  const skinColor = stats.color;
+  const bodyFlash = player.hitFlash > 0 && player.hitFlash % 6 < 3;
+  const color = bodyFlash ? '#FFFFFF' : skinColor;
+  const headR = isRage ? 19 : 15;
+  const headCY = -stats.h - headR + 2;
+  const armSwing = player.punchAnim > 0 ? Math.sin((14 - player.punchAnim) / 14 * Math.PI) : 0;
+  const legSwing = Math.abs(player.vx) > 0.2 ? Math.sin(Date.now() / 90) * 10 : 0;
+  const f = player.facing;
+
+  ctx.save();
+  ctx.translate(player.x, player.y);
+
+  // ground shadow
+  ctx.beginPath();
+  ctx.ellipse(0, 4, stats.w * 0.75, 7, 0, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(0,0,0,0.35)';
+  ctx.fill();
+
+  ctx.strokeStyle = color;
+  ctx.lineCap = 'round';
+
+  // back leg
+  ctx.lineWidth = isRage ? 11 : 8;
+  ctx.beginPath();
+  ctx.moveTo(-stats.w * 0.18, -stats.h * 0.42);
+  ctx.lineTo(-stats.w * 0.22 - legSwing * 0.3, 0);
+  ctx.stroke();
+  // back foot
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.ellipse(-stats.w * 0.22 - legSwing * 0.3 + f * 4, 2, 9, 5, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // back arm
+  ctx.lineWidth = isRage ? 9 : 6.5;
+  ctx.beginPath();
+  ctx.moveTo(-stats.w * 0.32, -stats.h * 0.85);
+  ctx.lineTo(-stats.w * 0.32 - f * armSwing * 6, -stats.h * 0.5 + armSwing * 8);
+  ctx.stroke();
+
+  // torso
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.roundRect(-stats.w * 0.36, -stats.h, stats.w * 0.72, stats.h * 0.85, isRage ? 14 : 10);
+  ctx.fill();
+
+  // front leg
+  ctx.strokeStyle = color;
+  ctx.lineWidth = isRage ? 11 : 8;
+  ctx.beginPath();
+  ctx.moveTo(stats.w * 0.18, -stats.h * 0.42);
+  ctx.lineTo(stats.w * 0.22 + legSwing * 0.3, 0);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.ellipse(stats.w * 0.22 + legSwing * 0.3 + f * 4, 2, 9, 5, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // neck
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.roundRect(-6, -stats.h - 6, 12, 10, 4);
+  ctx.fill();
+
+  // head
+  ctx.beginPath();
+  ctx.arc(0, headCY, headR, 0, Math.PI * 2);
+  ctx.fill();
+
+  // ears
+  ctx.beginPath();
+  ctx.ellipse(-headR * 0.85, headCY, headR * 0.28, headR * 0.4, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(headR * 0.85, headCY, headR * 0.28, headR * 0.4, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // nose (small ridge in facing direction)
+  ctx.beginPath();
+  ctx.moveTo(f * headR * 0.55, headCY - 2);
+  ctx.lineTo(f * headR * 0.95, headCY + 3);
+  ctx.lineTo(f * headR * 0.55, headCY + 5);
+  ctx.closePath();
+  ctx.fill();
+
+  // eyes (glow when firing)
+  const eyeGlow = player.eyeFlash > 0;
+  ctx.fillStyle = eyeGlow ? '#FFFFFF' : '#0A0E17';
+  if (eyeGlow) { ctx.shadowColor = skinColor; ctx.shadowBlur = 12; }
+  const eyeOffsetX = f * headR * 0.32;
+  ctx.beginPath();
+  ctx.arc(eyeOffsetX - 4, headCY - 2, eyeGlow ? 4.5 : 3.2, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(eyeOffsetX + 5, headCY - 2, eyeGlow ? 4.5 : 3.2, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+
+  // front arm (drawn last, over torso)
+  ctx.strokeStyle = color;
+  ctx.lineWidth = isRage ? 9 : 6.5;
+  ctx.beginPath();
+  ctx.moveTo(stats.w * 0.32, -stats.h * 0.85);
+  ctx.lineTo(stats.w * 0.32 + f * armSwing * 10, -stats.h * 0.55 - armSwing * 10);
+  ctx.stroke();
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.arc(stats.w * 0.32 + f * armSwing * 10, -stats.h * 0.55 - armSwing * 10, 5.5, 0, Math.PI * 2);
+  ctx.fill();
+
+  if (isRage) {
+    ctx.strokeStyle = 'rgba(255,90,46,0.4)';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.roundRect(-stats.w/2 - 6, -stats.h - 6, stats.w + 12, stats.h + 14, 14);
+    ctx.stroke();
+  }
+
+  ctx.restore();
+
+  if (floatingText) {
+    ctx.font = "bold 14px 'Orbitron', sans-serif";
+    ctx.fillStyle = isRage ? '#FF5A2E' : '#4FD8FF';
+    ctx.textAlign = 'center';
+    ctx.fillText(floatingText, player.x, player.y - stats.h - 34);
+  }
+}
+
+function drawEnemies() {
+  enemies.forEach(en => {
+    ctx.save();
+    ctx.translate(en.x, en.y);
+    ctx.beginPath();
+    ctx.ellipse(0, 4, 20, 6, 0, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(0,0,0,0.35)';
+    ctx.fill();
+    ctx.fillStyle = en.hitFlash > 0 ? '#FFFFFF' : '#8C93A6';
+    ctx.beginPath();
+    ctx.roundRect(-en.w/2, -en.h, en.w, en.h, 6);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(0, -en.h - 10, 11, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  });
+}
+
+function drawProjectiles() {
+  projectiles.forEach(p => {
+    ctx.save();
+    ctx.strokeStyle = p.color;
+    ctx.shadowColor = p.color;
+    ctx.shadowBlur = 14;
+    ctx.lineWidth = 4;
+    ctx.lineCap = 'round';
+    const dir = p.vx > 0 ? 1 : -1;
+    ctx.beginPath();
+    ctx.moveTo(p.x - dir * 16, p.y);
+    ctx.lineTo(p.x, p.y);
+    ctx.stroke();
+    ctx.fillStyle = '#FFFFFF';
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  });
+}
+
+function drawArena() {
+  ctx.clearRect(0, 0, W, H);
+  ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+  ctx.beginPath();
+  ctx.moveTo(0, GROUND_Y + 6);
+  ctx.lineTo(W, GROUND_Y + 6);
+  ctx.stroke();
+}
+
+function endGame() {
+  running = false;
+  document.getElementById('final-score').textContent = 'Score: ' + score;
+  document.getElementById('gameover-overlay').classList.add('show');
+}
+
+function resetGame() {
+  player.x = 130; player.y = GROUND_Y; player.vx = 0; player.vy = 0;
+  player.form = 'human'; player.health = 100; player.energy = 0;
+  player.punchCooldown = 0; player.laserCooldown = 0; player.hitFlash = 0;
+  enemies = []; projectiles = []; score = 0; spawnTimer = 0; spawnInterval = 100;
+  running = true;
+}
+
+document.getElementById('start-btn').addEventListener('click', () => {
+  document.getElementById('start-overlay').classList.remove('show');
+  resetGame();
+});
+document.getElementById('retry-btn').addEventListener('click', () => {
+  document.getElementById('gameover-overlay').classList.remove('show');
+  resetGame();
+});
+
+function loop() {
+  if (running) {
+    playerControl();
+    physicsStep();
+    updateHUD();
+  }
+  drawArena();
+  drawEnemies();
+  drawProjectiles();
+  drawPlayer();
+  requestAnimationFrame(loop);
+}
+loop();
+</script>
+</body>
+</html>
